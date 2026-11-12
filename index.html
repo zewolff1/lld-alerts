@@ -16,7 +16,8 @@ button,input{font:inherit;border-radius:12px;border:1px solid #273049;padding:14
 <button id="t" class="g">Send a test notification</button>
 </div>
 <script>
-const WORKER = 'https://lld-alerts.y9d7rsw57p.workers.dev/'; // like https://lld-alerts.yourname.workers.dev  (no slash at the end)
+const WORKER_URL = 'https://lld-alerts.y9d7rsw57p.workers.dev/'; // like https://lld-alerts.yourname.workers.dev
+const WORKER = WORKER_URL.trim().replace(/\/+$/, '');
 const $ = id => document.getElementById(id), st = m => { $('st').textContent = m; };
 const u8 = s => { const p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...b].map(c => c.charCodeAt(0))); };
 try { $('k').value = localStorage.getItem('lld_ak') || ''; } catch (e) { }
@@ -30,7 +31,9 @@ $('on').onclick = async () => {
         if (WORKER.indexOf('PASTE') === 0) { st('Set the WORKER line at the top of index.html first.'); return; }
         const reg = await navigator.serviceWorker.register('sw.js?w=' + encodeURIComponent(WORKER)); await navigator.serviceWorker.ready;
         if ((await Notification.requestPermission()) !== 'granted') { st('Permission was not granted. Allow notifications in your phone settings for this page.'); return; }
-        const key = (await (await fetch(WORKER + '/vapid')).json()).key;
+        const vr = await fetch(WORKER + '/vapid'); let vj = null; try { vj = await vr.json(); } catch (e) { }
+        if (!vj || !vj.key) { st('The Worker did not return a key (status ' + vr.status + '). Open ' + WORKER + '/vapid in your browser to see why. Most often the STATE storage binding is missing or the Worker address is wrong.'); return; }
+        const key = vj.key;
         let sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(key) });
         await fetch(WORKER + '/subscribe', { method: 'POST', body: JSON.stringify(sub.toJSON()) });
         st('Notifications are ON for this device.');
