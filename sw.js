@@ -8,4 +8,4 @@ self.addEventListener('push', e => e.waitUntil((async () => {
     if (!msgs.length) msgs = [{ title: 'LLD Dynasty', body: 'Something new happened in the league.', url: '' }];
     for (const m of msgs) await self.registration.showNotification(m.title, { body: m.body, icon: 'icon-192.png', badge: 'icon-192.png', data: { url: m.url || '' } });
 })()));
-self.addEventListener('notificationclick', e => { e.notification.close(); const url = (e.notification.data && e.notification.data.url) || self.registration.scope; e.waitUntil(clients.openWindow(url)); });
+self.addEventListener('notificationclick', e => { e.notification.close(); const url = self.registration.scope + '#feed'; e.waitUntil(clients.openWindow(url)); });
