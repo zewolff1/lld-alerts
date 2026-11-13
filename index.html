@@ -5,9 +5,12 @@
 :root{color-scheme:dark}body{margin:0;background:#0b0f1a;color:#f1f5f9;font:16px/1.5 system-ui,-apple-system,sans-serif;padding:24px 16px}
 .w{max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:14px}h1{font-size:22px;margin:0}p{margin:0;color:#94a3b8;font-size:14px}
 button,input{font:inherit;border-radius:12px;border:1px solid #273049;padding:14px;background:#151b2b;color:#f1f5f9}button{font-weight:800;background:#2563eb;border-color:#2563eb}button.g{background:#151b2b;border-color:#273049}
+a.lg{display:block;text-align:center;text-decoration:none;font-weight:800;font-size:18px;padding:18px;border-radius:14px;background:#2563eb;color:#fff}label.ck{display:flex;gap:10px;align-items:center;font-size:14px;color:#94a3b8}label.ck input{width:20px;height:20px;padding:0}
 #st{padding:12px 14px;border-radius:12px;background:#151b2b;border:1px solid #273049;font-size:14px}
 </style></head><body><div class="w">
 <h1>LLD Alerts</h1>
+<a class="lg" id="lg" href="#">Open my league</a>
+<label class="ck"><input type="checkbox" id="auto"> Open the league automatically when I launch this app</label>
 <p>Get a notification on this phone when a trade offer or a completed trade happens in LLD Dynasty.</p>
 <div id="st">Checking…</div>
 <button id="on">Enable notifications</button>
@@ -17,6 +20,7 @@ button,input{font:inherit;border-radius:12px;border:1px solid #273049;padding:14
 </div>
 <script>
 const WORKER_URL = 'https://lld-alerts.y9d7rsw57p.workers.dev/'; // like https://lld-alerts.yourname.workers.dev
+const LEAGUE_URL = 'https://www45.myfantasyleague.com/2026/home/63085'; // your league page
 const WORKER = WORKER_URL.trim().replace(/\/+$/, '');
 const $ = id => document.getElementById(id), st = m => { $('st').textContent = m; };
 const u8 = s => { const p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...b].map(c => c.charCodeAt(0))); };
@@ -42,5 +46,9 @@ $('on').onclick = async () => {
 $('t').onclick = async () => {
     try { const k = $('k').value.trim(); localStorage.setItem('lld_ak', k); const r = await (await fetch(WORKER + '/test?k=' + encodeURIComponent(k))).json(); st(r.error ? 'Wrong admin key.' : 'Test sent to ' + r.sent + ' device(s).'); } catch (e) { st('Test failed: ' + e.message); }
 };
+$('lg').href = LEAGUE_URL;
+try { $('auto').checked = localStorage.getItem('lld_auto') === '1'; } catch (e) { }
+$('auto').onchange = () => { try { localStorage.setItem('lld_auto', $('auto').checked ? '1' : '0'); } catch (e) { } };
+try { const sa = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches; if (sa && localStorage.getItem('lld_auto') === '1' && location.hash !== '#stay') location.replace(LEAGUE_URL); } catch (e) { }
 status();
 </script></body></html>
