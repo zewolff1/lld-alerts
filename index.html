@@ -5,7 +5,7 @@
 :root{color-scheme:dark}body{margin:0;background:#0b0f1a;color:#f1f5f9;font:16px/1.5 system-ui,-apple-system,sans-serif;padding:24px 16px}
 .w{max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:14px}h1{font-size:22px;margin:0}p{margin:0;color:#94a3b8;font-size:14px}
 button,input{font:inherit;border-radius:12px;border:1px solid #273049;padding:14px;background:#151b2b;color:#f1f5f9}button{font-weight:800;background:#2563eb;border-color:#2563eb}button.g{background:#151b2b;border-color:#273049}
-a.lg{display:block;text-align:center;text-decoration:none;font-weight:800;font-size:18px;padding:18px;border-radius:14px;background:#2563eb;color:#fff}label.ck{display:flex;gap:10px;align-items:center;font-size:14px;color:#94a3b8}label.ck input{width:20px;height:20px;padding:0}
+a.lg{display:block;text-align:center;text-decoration:none;font-weight:800;font-size:18px;padding:18px;border-radius:14px;background:#2563eb;color:#fff}label.ck{display:flex;gap:10px;align-items:center;font-size:14px;color:#94a3b8}label.pr{padding:7px 0;color:#f1f5f9;border-top:1px solid #273049}label.ck input{width:20px;height:20px;padding:0}
 #st{padding:12px 14px;border-radius:12px;background:#151b2b;border:1px solid #273049;font-size:14px}
 </style></head><body><div class="w">
 <h1>LLD Alerts</h1>
@@ -15,11 +15,22 @@ a.lg{display:block;text-align:center;text-decoration:none;font-weight:800;font-s
 <div id="st">Checking…</div>
 <button id="on">Enable notifications</button>
 <p>iPhone: tap Share, then Add to Home Screen, and open this page from the new icon first. Notifications only work from there.</p>
+<div id="pf" style="display:none;flex-direction:column;gap:2px;padding:6px 14px;border-radius:12px;background:#151b2b;border:1px solid #273049">
+<div style="font-weight:800;padding:6px 0">What to alert me about</div>
+<label class="ck pr"><input type="checkbox" data-k="offer"> Trade offers to me</label>
+<label class="ck pr"><input type="checkbox" data-k="trade"> Completed trades</label>
+<label class="ck pr"><input type="checkbox" data-k="tx"> Transactions (adds, drops, waivers)</label>
+<label class="ck pr"><input type="checkbox" data-k="board"> Message board posts</label>
+<label class="ck pr"><input type="checkbox" data-k="tb"> Trade block status changes</label>
+<label class="ck pr"><input type="checkbox" data-k="preview"> Weekly matchup preview</label>
+<label class="ck pr"><input type="checkbox" data-k="recap"> Weekly recap</label>
+</div>
 <input id="k" type="password" placeholder="Admin key (for the test button)" autocomplete="off">
 <button id="t" class="g">Send a test notification</button>
+<button id="f" class="g">Send a fake trade offer</button>
 </div>
 <script>
-const WORKER_URL = 'https://lld-alerts.y9d7rsw57p.workers.dev/'; // like https://lld-alerts.yourname.workers.dev
+const WORKER_URL = 'PASTE-YOUR-WORKER-URL-HERE'; // like https://lld-alerts.yourname.workers.dev
 const LEAGUE_URL = 'https://www45.myfantasyleague.com/2026/home/63085'; // your league page
 const WORKER = WORKER_URL.trim().replace(/\/+$/, '');
 const $ = id => document.getElementById(id), st = m => { $('st').textContent = m; };
@@ -29,6 +40,20 @@ async function status() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) { st('This browser cannot do push. On iPhone, add this page to the Home Screen first and open it from there.'); return; }
     const r = await navigator.serviceWorker.getRegistration(), s = r && await r.pushManager.getSubscription();
     st(s ? 'Notifications are ON for this device.' : 'Notifications are off.');
+    if (s) prefsLoad(s);
+}
+let SUBID = '';
+async function subId(s) { const h = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s.endpoint))); return [...h].map(x => x.toString(16).padStart(2, '0')).join('').slice(0, 24); }
+async function prefsLoad(s) {
+    try {
+        SUBID = await subId(s); const p = (await (await fetch(WORKER + '/prefs?id=' + SUBID)).json()).prefs || {};
+        document.querySelectorAll('#pf input').forEach(i => { i.checked = p[i.dataset.k] !== false; i.onchange = prefsSave; });
+        $('pf').style.display = 'flex';
+    } catch (e) { }
+}
+async function prefsSave() {
+    const o = {}; document.querySelectorAll('#pf input').forEach(i => { o[i.dataset.k] = i.checked; });
+    try { await fetch(WORKER + '/prefs?id=' + SUBID, { method: 'POST', body: JSON.stringify(o) }); } catch (e) { st('Could not save your choices.'); }
 }
 $('on').onclick = async () => {
     try {
@@ -40,7 +65,7 @@ $('on').onclick = async () => {
         const key = vj.key;
         let sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8(key) });
         await fetch(WORKER + '/subscribe', { method: 'POST', body: JSON.stringify(sub.toJSON()) });
-        st('Notifications are ON for this device.');
+        st('Notifications are ON for this device.'); prefsLoad(sub);
     } catch (e) { st('Could not turn on: ' + e.message); }
 };
 $('t').onclick = async () => {
@@ -50,5 +75,8 @@ $('lg').href = LEAGUE_URL;
 try { $('auto').checked = localStorage.getItem('lld_auto') === '1'; } catch (e) { }
 $('auto').onchange = () => { try { localStorage.setItem('lld_auto', $('auto').checked ? '1' : '0'); } catch (e) { } };
 try { const sa = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches; if (sa && localStorage.getItem('lld_auto') === '1' && location.hash !== '#stay') location.replace(LEAGUE_URL); } catch (e) { }
+$('f').onclick = async () => {
+    try { const k = $('k').value.trim(); localStorage.setItem('lld_ak', k); const r = await (await fetch(WORKER + '/faketrade?k=' + encodeURIComponent(k))).json(); st(r.error ? 'Wrong admin key.' : 'Fake trade offer sent to ' + r.sent + ' device(s).'); } catch (e) { st('Test failed: ' + e.message); }
+};
 status();
 </script></body></html>
