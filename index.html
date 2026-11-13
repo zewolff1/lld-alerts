@@ -5,13 +5,14 @@
 :root{color-scheme:dark}body{margin:0;background:#0b0f1a;color:#f1f5f9;font:16px/1.5 system-ui,-apple-system,sans-serif;padding:24px 16px}
 .w{max-width:420px;margin:0 auto;display:flex;flex-direction:column;gap:14px}h1{font-size:22px;margin:0}p{margin:0;color:#94a3b8;font-size:14px}
 button,input{font:inherit;border-radius:12px;border:1px solid #273049;padding:14px;background:#151b2b;color:#f1f5f9}button{font-weight:800;background:#2563eb;border-color:#2563eb}button.g{background:#151b2b;border-color:#273049}
-a.lg{display:block;text-align:center;text-decoration:none;font-weight:800;font-size:18px;padding:18px;border-radius:14px;background:#2563eb;color:#fff}label.ck{display:flex;gap:10px;align-items:center;font-size:14px;color:#94a3b8}label.pr{padding:7px 0;color:#f1f5f9;border-top:1px solid #273049}label.ck input{width:20px;height:20px;padding:0}
+a.lg{display:block;text-align:center;text-decoration:none;font-weight:800;font-size:18px;padding:18px;border-radius:14px;background:#2563eb;color:#fff}#fd .fc{display:flex;gap:10px;align-items:center;border:1px solid #273049;border-radius:14px;padding:10px;background:#151b2b}#fd .fc .t{font-weight:700;font-size:14px;line-height:1.25}#fd .fc .b{font-size:12.5px;color:#94a3b8;line-height:1.3}#fd .lg{width:42px;height:42px;border-radius:50%;flex:none;object-fit:cover;background:#273049}#fd .hs{width:42px;height:42px;border-radius:50%;flex:none;object-fit:cover;background:#273049;border:2px solid #3b82f6}#fd .tm{font-size:11px;color:#94a3b8;margin-left:auto;flex:none;padding-left:6px}#fd h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;margin:4px 0 0}label.ck{display:flex;gap:10px;align-items:center;font-size:14px;color:#94a3b8}label.pr{padding:7px 0;color:#f1f5f9;border-top:1px solid #273049}label.ck input{width:20px;height:20px;padding:0}
 #st{padding:12px 14px;border-radius:12px;background:#151b2b;border:1px solid #273049;font-size:14px}
 </style></head><body><div class="w">
 <h1>LLD Alerts</h1>
 <a class="lg" id="lg" href="#">Open my league</a>
 <label class="ck"><input type="checkbox" id="auto"> Open the league automatically when I launch this app</label>
 <p>Get a notification on this phone when a trade offer or a completed trade happens in LLD Dynasty.</p>
+<div id="fd" style="display:flex;flex-direction:column;gap:8px"></div>
 <div id="st">Checking…</div>
 <button id="on">Enable notifications</button>
 <p>iPhone: tap Share, then Add to Home Screen, and open this page from the new icon first. Notifications only work from there.</p>
@@ -74,9 +75,26 @@ $('t').onclick = async () => {
 $('lg').href = LEAGUE_URL;
 try { $('auto').checked = localStorage.getItem('lld_auto') === '1'; } catch (e) { }
 $('auto').onchange = () => { try { localStorage.setItem('lld_auto', $('auto').checked ? '1' : '0'); } catch (e) { } };
-try { const sa = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches; if (sa && localStorage.getItem('lld_auto') === '1' && location.hash !== '#stay') location.replace(LEAGUE_URL); } catch (e) { }
+try { const sa = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches; if (sa && localStorage.getItem('lld_auto') === '1' && location.hash !== '#stay' && location.hash !== '#feed') location.replace(LEAGUE_URL); } catch (e) { }
 $('f').onclick = async () => {
     try { const k = $('k').value.trim(); localStorage.setItem('lld_ak', k); const r = await (await fetch(WORKER + '/faketrade?k=' + encodeURIComponent(k))).json(); st(r.error ? 'Wrong admin key.' : 'Fake trade offer sent to ' + r.sent + ' device(s).'); } catch (e) { st('Test failed: ' + e.message); }
 };
+const LEAGUE_ID = '63085', EMO = { offer: '\uD83E\uDD1D', trade: '\uD83D\uDD04', tx: '\uD83D\uDD01', board: '\uD83D\uDCAC', tb: '\uD83D\uDCCB', preview: '\uD83D\uDCC5', recap: '\uD83C\uDFC6' };
+const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const ago = ms => { const m = Math.max(0, Math.round((Date.now() - ms) / 60000)); return m < 1 ? 'now' : m < 60 ? m + 'm' : m < 1440 ? Math.round(m / 60) + 'h' : Math.round(m / 1440) + 'd'; };
+async function feedLoad() {
+    if (WORKER.indexOf('PASTE') === 0) return;
+    try {
+        const d = await (await fetch(WORKER + '/feed')).json(), y = new Date().getFullYear();
+        if (!d.items || !d.items.length) { $('fd').innerHTML = ''; return; }
+        $('fd').innerHTML = '<h2>Recent alerts</h2>' + d.items.map(x => {
+            const lg = x.fid ? (d.logos && d.logos[x.fid]) || ('https://www45.myfantasyleague.com/fflnetdynamic' + y + '/' + LEAGUE_ID + '_franchise_logo' + x.fid + '.png') : '';
+            const left = lg ? `<img class="lg" src="${esc(lg)}" onerror="this.style.display='none'">` : `<div class="lg" style="display:grid;place-items:center;font-size:20px">${EMO[x.type] || '\uD83D\uDD14'}</div>`;
+            const hs = (x.pids || []).slice(0, 2).map(p => `<img class="hs" src="https://www.mflscripts.com/playerImages_80x107/mfl_${esc(p)}.png" onerror="this.style.display='none'">`).join('');
+            return `<a class="fc" href="${LEAGUE_URL}" style="text-decoration:none;color:inherit">${left}${hs}<div style="min-width:0"><div class="t">${esc(x.title)}</div>${x.body ? `<div class="b">${esc(x.body)}</div>` : ''}</div><div class="tm">${ago(x.ts)}</div></a>`;
+        }).join('');
+    } catch (e) { }
+}
+feedLoad(); document.addEventListener('visibilitychange', () => { if (!document.hidden) feedLoad(); });
 status();
 </script></body></html>
